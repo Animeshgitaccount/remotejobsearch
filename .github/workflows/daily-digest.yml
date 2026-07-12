@@ -1,1 +1,38 @@
+name: Daily Remote Job Digest
 
+on:
+  schedule:
+    # 07:30 IST = 02:00 UTC. Adjust the UTC time to change delivery hour.
+    - cron: "0 2 * * *"
+  workflow_dispatch:        # lets you run it manually from the Actions tab
+
+# Needed so the workflow can commit the updated seen_jobs.json back
+permissions:
+  contents: write
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run digest
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASS: ${{ secrets.GMAIL_APP_PASS }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+        run: python digest.py
+
+      - name: Persist seen jobs
+        run: |
+          git config user.name  "job-digest-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add seen_jobs.json
+          git commit -m "Update seen jobs [skip ci]" || echo "Nothing to commit"
+          git push || echo "Nothing to push"
